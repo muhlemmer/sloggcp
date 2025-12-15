@@ -20,13 +20,19 @@ For example, CloudRun, etc.
 
 ## Usage
 
+### Get module
+
+```sh
+go get github.com/muhlemmer/sloggcp@latest
+```
+
 ### Override default attributes
 
 ```go
 package main
 
 import (
-	"github.com/vlad-tokarev/sloggcp"
+	"github.com/muhlemmer/sloggcp"
 	"log/slog"
 	"os"
 )
