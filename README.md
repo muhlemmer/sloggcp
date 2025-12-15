@@ -1,7 +1,11 @@
 # sloggcp
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/muhlemmer/sloggcp.svg)](https://pkg.go.dev/github.com/muhlemmer/sloggcp)
+[![codecov](https://codecov.io/github/muhlemmer/sloggcp/graph/badge.svg?token=Q1HHED6QPM)](https://codecov.io/github/muhlemmer/sloggcp)
+[![Go Report Card](https://goreportcard.com/badge/github.com/muhlemmer/sloggcp)](https://goreportcard.com/report/github.com/muhlemmer/sloggcp)
+
 `sloggcp` provides a simple implementation of the `ReplaceAttr` 
-function for `JSONHandler` from [slog](https://pkg.go.dev/log/slog@master).
+function for `JSONHandler` from [slog](https://pkg.go.dev/log/slog).
 
 This implementation adapts the default slog attributes to be compatible 
 with [Google Cloud Platform's Structured Logging](https://cloud.google.com/logging/docs/structured-logging).
