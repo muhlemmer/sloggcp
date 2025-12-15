@@ -1,6 +1,8 @@
 package sloggcp_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"testing"
@@ -56,12 +58,52 @@ func TestReplaceAttr(t *testing.T) {
 			want: slog.Time("time", someTime),
 		},
 		{
-			name: "LevelKey",
+			name: "LevelKey Debug",
 			args: args{
 				groups: []string{},
 				a:      slog.Any(slog.LevelKey, slog.LevelDebug),
 			},
 			want: slog.String("severity", "DEBUG"),
+		},
+		{
+			name: "LevelKey Info",
+			args: args{
+				groups: []string{},
+				a:      slog.Any(slog.LevelKey, slog.LevelInfo),
+			},
+			want: slog.String("severity", "INFO"),
+		},
+		{
+			name: "LevelKey Warn",
+			args: args{
+				groups: []string{},
+				a:      slog.Any(slog.LevelKey, slog.LevelWarn),
+			},
+			want: slog.String("severity", "WARNING"),
+		},
+		{
+			name: "LevelKey Error",
+			args: args{
+				groups: []string{},
+				a:      slog.Any(slog.LevelKey, slog.LevelError),
+			},
+			want: slog.String("severity", "ERROR"),
+		},
+		{
+			name: "LevelKey Invalid level",
+			args: args{
+				groups: []string{},
+				a:      slog.Any(slog.LevelKey, slog.Level(-1)),
+			},
+			want: slog.String("severity", "DEFAULT"),
+		},
+		{
+			name: "LevelKey Invalid type",
+			args: args{
+				groups: []string{},
+				a:      slog.Any(slog.LevelKey, "invalid"),
+			},
+			want: slog.String("severity", "DEFAULT"),
 		},
 		{
 			name: "SourceKey",
@@ -94,5 +136,70 @@ func TestReplaceAttr(t *testing.T) {
 				t.Errorf("ReplaceAttr() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestLogOutput(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{
+		ReplaceAttr: sloggcp.ReplaceAttr,
+		AddSource:   true,
+		Level:       slog.LevelDebug,
+	}))
+	out := json.NewDecoder(&buf)
+
+	tests := []struct {
+		name         string
+		level        slog.Level
+		wantSeverity string
+	}{
+		{
+			name:         "Debug",
+			level:        slog.LevelDebug,
+			wantSeverity: sloggcp.DebugSeverity,
+		},
+		{
+			name:         "Info",
+			level:        slog.LevelInfo,
+			wantSeverity: sloggcp.InfoSeverity,
+		},
+		{
+			name:         "Warn",
+			level:        slog.LevelWarn,
+			wantSeverity: sloggcp.WarningSeverity,
+		},
+		{
+			name:         "Error",
+			level:        slog.LevelError,
+			wantSeverity: sloggcp.ErrorSeverity,
+		},
+		{
+			name:         "Default",
+			level:        slog.Level(-1),
+			wantSeverity: sloggcp.DefaultSeverity,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer buf.Reset()
+			logger.Log(t.Context(), tt.level, "test message")
+			got := make(map[string]any)
+			if err := out.Decode(&got); err != nil {
+				t.Fatalf("Failed to decode log output: %v", err)
+			}
+			wantKeys := []string{"severity", "message", "time", "logging.googleapis.com/sourceLocation"}
+			for _, k := range wantKeys {
+				if _, ok := got[k]; !ok {
+					t.Errorf("Missing key %q in log output", k)
+				}
+			}
+			if got["severity"] != tt.wantSeverity {
+				t.Errorf("severity = %v, want %v", got["severity"], tt.wantSeverity)
+			}
+			if got["message"] != "test message" {
+				t.Errorf("message = %v, want %v", got["message"], "test message")
+			}
+		})
+
 	}
 }
