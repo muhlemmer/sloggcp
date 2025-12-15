@@ -1,4 +1,3 @@
-module "github.com/vlad-tokarev/sloggcp"
+module github.com/muhlemmer/sloggcp
 
-go 1.21
-
+go 1.24

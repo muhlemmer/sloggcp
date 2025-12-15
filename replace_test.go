@@ -1,11 +1,12 @@
 package sloggcp_test
 
 import (
-	"github.com/vlad-tokarev/sloggcp"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/muhlemmer/sloggcp"
 )
 
 var (
