@@ -39,7 +39,6 @@ func ExampleReplaceAttr() {
 }
 
 func TestReplaceAttr(t *testing.T) {
-
 	type args struct {
 		groups []string
 		a      slog.Attr
@@ -128,6 +127,14 @@ func TestReplaceAttr(t *testing.T) {
 				a:      slog.String("test", "test"),
 			},
 			want: slog.String("test", "test"),
+		},
+		{
+			name: "Nested LevelKey",
+			args: args{
+				groups: []string{"nested"},
+				a:      slog.Any(slog.LevelKey, slog.LevelInfo),
+			},
+			want: slog.Any(slog.LevelKey, slog.LevelInfo),
 		},
 	}
 	for _, tt := range tests {
