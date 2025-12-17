@@ -1,4 +1,4 @@
-package sloggcp_test
+package sloggcp
 
 import (
 	"bytes"
@@ -7,8 +7,6 @@ import (
 	"os"
 	"testing"
 	"time"
-
-	"github.com/muhlemmer/sloggcp"
 )
 
 var (
@@ -23,9 +21,8 @@ var (
 // ExampleReplaceAttr shows how to replace default slog attributes with GCP compatible ones
 // It writes to stderr, that is why output is empty
 func ExampleReplaceAttr() {
-
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-		ReplaceAttr: sloggcp.ReplaceAttr,
+		ReplaceAttr: ReplaceAttr,
 		AddSource:   true,
 		Level:       slog.LevelDebug,
 	}))
@@ -139,17 +136,17 @@ func TestReplaceAttr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := sloggcp.ReplaceAttr(tt.args.groups, tt.args.a); !got.Equal(tt.want) {
+			if got := ReplaceAttr(tt.args.groups, tt.args.a); !got.Equal(tt.want) {
 				t.Errorf("ReplaceAttr() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestLogOutput(t *testing.T) {
+func TestReplaceAttr_LogOutput(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{
-		ReplaceAttr: sloggcp.ReplaceAttr,
+		ReplaceAttr: ReplaceAttr,
 		AddSource:   true,
 		Level:       slog.LevelDebug,
 	}))
@@ -163,27 +160,27 @@ func TestLogOutput(t *testing.T) {
 		{
 			name:         "Debug",
 			level:        slog.LevelDebug,
-			wantSeverity: sloggcp.DebugSeverity,
+			wantSeverity: DebugSeverity,
 		},
 		{
 			name:         "Info",
 			level:        slog.LevelInfo,
-			wantSeverity: sloggcp.InfoSeverity,
+			wantSeverity: InfoSeverity,
 		},
 		{
 			name:         "Warn",
 			level:        slog.LevelWarn,
-			wantSeverity: sloggcp.WarningSeverity,
+			wantSeverity: WarningSeverity,
 		},
 		{
 			name:         "Error",
 			level:        slog.LevelError,
-			wantSeverity: sloggcp.ErrorSeverity,
+			wantSeverity: ErrorSeverity,
 		},
 		{
 			name:         "Default",
 			level:        slog.Level(-1),
-			wantSeverity: sloggcp.DefaultSeverity,
+			wantSeverity: DefaultSeverity,
 		},
 	}
 	for _, tt := range tests {

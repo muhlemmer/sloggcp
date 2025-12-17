@@ -2,23 +2,6 @@ package sloggcp
 
 import "log/slog"
 
-// Key names handled by this package.
-const (
-	SeverityKey       = "severity"                              // [slog.LevelKey] replacement
-	MessageKey        = "message"                               // [slog.MessageKey] replacement
-	SourceLocationKey = "logging.googleapis.com/sourceLocation" // [slog.SourceKey] replacement
-	TimKey            = slog.TimeKey                            // time key (no replacement needed)
-)
-
-// Severity values used by GCP logging.
-const (
-	DebugSeverity   = "DEBUG"
-	InfoSeverity    = "INFO"
-	WarningSeverity = "WARNING"
-	ErrorSeverity   = "ERROR"
-	DefaultSeverity = "DEFAULT"
-)
-
 // ReplaceAttr replaces slog default attributes with GCP compatible ones
 // https://cloud.google.com/logging/docs/structured-logging
 // https://cloud.google.com/logging/docs/agent/logging/configuration#special-fields

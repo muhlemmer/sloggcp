@@ -1,69 +1,4 @@
-# sloggcp
-
-[![Go Reference](https://pkg.go.dev/badge/github.com/muhlemmer/sloggcp.svg)](https://pkg.go.dev/github.com/muhlemmer/sloggcp)
-[![codecov](https://codecov.io/github/muhlemmer/sloggcp/graph/badge.svg?token=Q1HHED6QPM)](https://codecov.io/github/muhlemmer/sloggcp)
-[![Go Report Card](https://goreportcard.com/badge/github.com/muhlemmer/sloggcp)](https://goreportcard.com/report/github.com/muhlemmer/sloggcp)
-
-`sloggcp` provides utilities to integrate Go's slog logging with Google Cloud Platform (GCP) structured logging.
-
-## ReplaceAttr
-
-It provides a simple implementation of the `ReplaceAttr`
-function for `JSONHandler` from [slog](https://pkg.go.dev/log/slog).
-
-This implementation adapts the default slog attributes to be compatible
-with [Google Cloud Platform's Structured Logging](https://cloud.google.com/logging/docs/structured-logging), by replacing the following attribute keys:
-
-| Slog key | GCP key                                 |
-| -------- | --------------------------------------- |
-| `level`  | `severity`                              |
-| `msg`    | `message`                               |
-| `source` | `logging.googleapis.com/sourceLocation` |
-| `time`   | `time`                                  |
-
-## Error reporting
-
-`sloggcp` comes with a error reporting handler, which turns a log line
-into a [formatted error message](https://cloud.google.com/error-reporting/docs/formatting-error-messages) whenever an error is part of the attributes.
-This enables [GCP Error Reporting](https://docs.cloud.google.com/error-reporting/docs) through logging.
-
-See the documentation for more details.
-
-## Usage
-
-### Get module
-
-```sh
-go get github.com/muhlemmer/sloggcp@latest
-```
-
-### Override default attributes
-
-```go
-package main
-
-import (
-	"github.com/muhlemmer/sloggcp"
-	"log/slog"
-	"os"
-)
-
-func main() {
-
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-		ReplaceAttr: sloggcp.ReplaceAttr,
-		AddSource:   true,
-		Level:       slog.LevelDebug,
-	}))
-	slog.SetDefault(logger)
-}
-
-```
-
-### Use error reporting handler
-
-```go
-package main
+package sloggcp_test
 
 import (
 	"errors"
@@ -113,7 +48,7 @@ func (e AppError) LogValue() slog.Value {
 	)
 }
 
-func main() {
+func ExampleNewErrorReportingHandler() {
 	h := sloggcp.NewErrorReportingHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 		// Replace "err" key with the standard [ErrorKey] for GCP error reporting.
