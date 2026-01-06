@@ -3,6 +3,7 @@ package sloggcp
 
 import (
 	"context"
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -39,6 +40,14 @@ var DefaultOpts = slog.HandlerOptions{
 // Relevant Google documentation:
 //   - [Structured Logging](https://cloud.google.com/logging/docs/structured-logging).
 //   - [Error Reporting](https://cloud.google.com/error-reporting/docs/formatting-error-messages).
+//
+// Attribute values are encoded according to the following rules, in order:
+//   - Attributes with [slog.KindGroup] values are expanded into nested JSON objects.
+//   - Attributes with [slog.LogValuer] values are replaced by the result of their LogValue() method.
+//   - Attributes with [json.Marshaler] or [encoding.TextMarshaler] values are encoded using the respective marshaling method.
+//   - Attributes with [error] values are replaced by the result of their Error() method.
+//   - Attributes with [fmt.Stringer] values are replaced by the result of their String() method.
+//   - All other attribute values are used as-is and handled according to [json.Marshal] rules.
 //
 // When opts is nil, [DefaultOpts] is used.
 // If ReplaceAttr is set in opts, it is called before error reporting handling.
@@ -144,17 +153,15 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 	r.Attrs(func(a slog.Attr) bool {
 		a = h.replaceAttr(groups, a)
 		if len(groups) == 0 {
-			if checkAndSetErrorReport(a, out) {
-				return true
-			}
+			checkAndSetErrorReport(a, out)
 		}
-		group[a.Key] = a.Value.Any()
+		group[a.Key] = extractValue(a.Value)
 		return true
 	})
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 	if err := h.encoder.Encode(out); err != nil {
-		return fmt.Errorf("sloggcp: %w", err)
+		return fmt.Errorf("sloggcp handler: %w", err)
 	}
 	return nil
 }
@@ -191,15 +198,26 @@ func (h *handler) withGroupOrAttrs(goa groupOrAttrs) *handler {
 }
 
 func extractValue(v slog.Value) any {
-	if v.Kind() != slog.KindGroup {
-		return v.Any()
+	if v.Kind() == slog.KindGroup {
+		m := make(map[string]any)
+		attr := v.Group()
+		for _, a := range attr {
+			m[a.Key] = extractValue(a.Value)
+		}
+		return m
 	}
-	m := make(map[string]any)
-	attr := v.Group()
-	for _, a := range attr {
-		m[a.Key] = extractValue(a.Value)
+	switch tv := v.Any().(type) {
+	case slog.LogValuer:
+		return extractValue(tv.LogValue())
+	case json.Marshaler, encoding.TextMarshaler:
+		return tv
+	case error:
+		return tv.Error()
+	case fmt.Stringer:
+		return tv.String()
+	default:
+		return tv
 	}
-	return m
 }
 
 func severityFromLevel(level slog.Level) string {

@@ -9,30 +9,44 @@ import (
 	"testing"
 )
 
-type expectSchema struct {
-	Type           string         `json:"@type"`
-	Message        string         `json:"message"`
-	Severity       string         `json:"severity"`
-	Source         testSource     `json:"logging.googleapis.com/sourceLocation"`
-	Error          any            `json:"error"`
-	Foo            fooType        `json:"foo"`
-	ReportLocation ReportLocation `json:"reportLocation"`
+type stringer struct{}
+
+func (stringer) String() string {
+	return "stringer"
 }
 
-type fooType struct {
+type marshaller struct{}
+
+func (marshaller) MarshalJSON() ([]byte, error) {
+	return []byte(`{"key":"value"}`), nil
+}
+
+type expectSchema struct {
+	Type           string          `json:"@type"`
+	Message        string          `json:"message"`
+	Severity       string          `json:"severity"`
+	Source         testSource      `json:"logging.googleapis.com/sourceLocation"`
+	Error          any             `json:"error"`
+	Group          groupType       `json:"group"`
+	Stringer       string          `json:"stringer"`
+	Marshaller     json.RawMessage `json:"marshaller"`
+	ReportLocation ReportLocation  `json:"reportLocation"`
+}
+
+type groupType struct {
 	Bar   string `json:"bar"`
 	Baz   int    `json:"baz"`
 	Error string `json:"error"`
 }
 
-func (f fooType) LogValue() slog.Value {
+func (f groupType) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("bar", f.Bar),
 		slog.Int("baz", f.Baz),
 	)
 }
 
-var fooTypeTest = fooType{
+var groupTypeTest = groupType{
 	Bar: "baz",
 	Baz: 42,
 }
@@ -55,20 +69,36 @@ func TestHandler(t *testing.T) {
 			name: "debug disabled",
 			opts: nil,
 			log: func(logger *slog.Logger) {
-				logger.Debug("this is debug", "foo", fooTypeTest)
+				logger.Debug("this is debug", "group", groupTypeTest)
 			},
 			want: nil,
 		},
 		{
-			name: "log info message",
-			opts: nil,
+			name: "debug enabled",
+			opts: &slog.HandlerOptions{
+				Level: slog.LevelDebug,
+			},
 			log: func(logger *slog.Logger) {
-				logger.Info("this is info", "foo", fooTypeTest)
+				logger.Debug("this is debug", "group", groupTypeTest)
 			},
 			want: &expectSchema{
-				Message:  "this is info",
-				Severity: InfoSeverity,
-				Foo:      fooTypeTest,
+				Message:  "this is debug",
+				Severity: DebugSeverity,
+				Group:    groupTypeTest,
+			},
+		},
+		{
+			name: "log info message, with stringer and marshaller",
+			opts: nil,
+			log: func(logger *slog.Logger) {
+				logger.Info("this is info", "group", groupTypeTest, "stringer", stringer{}, "marshaller", marshaller{})
+			},
+			want: &expectSchema{
+				Message:    "this is info",
+				Severity:   InfoSeverity,
+				Group:      groupTypeTest,
+				Stringer:   "stringer",
+				Marshaller: json.RawMessage(`{"key":"value"}`),
 			},
 		},
 		{
@@ -77,21 +107,21 @@ func TestHandler(t *testing.T) {
 				AddSource: true,
 			},
 			log: func(logger *slog.Logger) {
-				logger.Info("this is info", "foo", fooTypeTest)
+				logger.Info("this is info", "group", groupTypeTest)
 			},
 			want: &expectSchema{
 				Message:  "this is info",
 				Severity: InfoSeverity,
 				Source: testSource{
-					Function: "github.com/muhlemmer/sloggcp.TestHandler.func3",
+					Function: "github.com/muhlemmer/sloggcp.TestHandler.func4",
 				},
-				Foo: fooTypeTest,
+				Group: groupTypeTest,
 			},
 		},
 		{
 			name: "log warn with group and attrs",
 			log: func(logger *slog.Logger) {
-				logger = logger.WithGroup("foo")
+				logger = logger.WithGroup("group")
 				logger = logger.With(
 					slog.String("bar", "baz"),
 					slog.Int("baz", 42),
@@ -101,7 +131,7 @@ func TestHandler(t *testing.T) {
 			want: &expectSchema{
 				Message:  "warn message",
 				Severity: WarningSeverity,
-				Foo: fooType{
+				Group: groupType{
 					Bar:   "baz",
 					Baz:   42,
 					Error: "grouped error",
@@ -111,7 +141,7 @@ func TestHandler(t *testing.T) {
 		{
 			name: "log info grouped without attrs",
 			log: func(logger *slog.Logger) {
-				logger = logger.WithGroup("foo")
+				logger = logger.WithGroup("group")
 				logger.Info("info message")
 			},
 			want: &expectSchema{
@@ -122,14 +152,14 @@ func TestHandler(t *testing.T) {
 		{
 			name: "log error string",
 			log: func(logger *slog.Logger) {
-				logger.Error("error message", "foo", fooTypeTest, slog.String("error", "something went wrong"))
+				logger.Error("error message", "group", groupTypeTest, slog.String("error", "something went wrong"))
 			},
 			want: &expectSchema{
 				Type:     ErrorReportTypeValue,
 				Message:  "something went wrong",
 				Severity: ErrorSeverity,
 				Error:    "something went wrong",
-				Foo:      fooTypeTest,
+				Group:    groupTypeTest,
 			},
 		},
 		{
@@ -137,7 +167,7 @@ func TestHandler(t *testing.T) {
 			log: func(logger *slog.Logger) {
 				logger = logger.With(
 					slog.String("error", "something went wrong"),
-					slog.Any("foo", fooTypeTest),
+					slog.Any("group", groupTypeTest),
 				)
 				logger.Error("error message")
 			},
@@ -146,7 +176,7 @@ func TestHandler(t *testing.T) {
 				Message:  "something went wrong",
 				Severity: ErrorSeverity,
 				Error:    "something went wrong",
-				Foo:      fooTypeTest,
+				Group:    groupTypeTest,
 			},
 		},
 		{
@@ -166,14 +196,14 @@ func TestHandler(t *testing.T) {
 				logger = logger.With(
 					slog.String("error", "something went wrong"),
 				)
-				logger.Error("error message", "foo", fooTypeTest)
+				logger.Error("error message", "group", groupTypeTest)
 			},
 			want: &expectSchema{
 				Type:     ErrorReportTypeValue,
 				Message:  "something went wrong",
 				Severity: ErrorSeverity,
 				Error:    "something went wrong",
-				Foo:      fooTypeTest,
+				Group:    groupTypeTest,
 			},
 		},
 		{
