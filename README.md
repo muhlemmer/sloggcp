@@ -1,3 +1,7 @@
+# Copied and archived!
+
+This repository has been copied to https://github.com/zitadel/sloggcp and this old location is now archived.
+
 # sloggcp
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/muhlemmer/sloggcp.svg)](https://pkg.go.dev/github.com/muhlemmer/sloggcp)
